@@ -1,5 +1,6 @@
 import requests
 import frappe
+import json
 
 from banking_integration.utils.jenga_auth import generate_signature
 
@@ -93,6 +94,31 @@ class JengaClient:
 
         return response.json()
     
+    def fetch_statement(self, payload):
+        token = self.generate_token()
+        signature_string = f"{payload['accountNumber']}{payload['countryCode']}{payload['toDate']}"
+        signature = generate_signature(signature_string)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+            "signature": signature,
+        }
+
+        response = requests.post(
+            f"{self.base_url}/v3-apis/account-api/v3.0/accounts/fullStatement",
+            headers=headers,
+            data=json.dumps(payload, separators=(",", ":"), sort_keys=True),
+            timeout=30,
+        )
+        print("Status:", response.status_code)
+        print("Headers:", headers)
+        print("Payload:", payload)
+        print("Body:", response.text)
+        response.raise_for_status()
+
+        return response.json()
+
     def internal_bank_transfer(self, payload):
 
         token = self.generate_token()

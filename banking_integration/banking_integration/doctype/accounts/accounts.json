@@ -14,7 +14,10 @@
   "current_balance",
   "last_synced",
   "enabled",
-  "bank_name"
+  "bank_name",
+  "account_statements_section",
+  "recent_statements",
+  "get_statement"
  ],
  "fields": [
   {
@@ -65,12 +68,29 @@
    "fieldtype": "Select",
    "label": "Bank Name",
    "options": "Equity"
+  },
+  {
+   "fieldname": "account_statements_section",
+   "fieldtype": "Section Break",
+   "label": "Account Statements"
+  },
+  {
+   "fieldname": "get_statement",
+   "fieldtype": "Button",
+   "label": "Get Statements for the Last Year"
+  },
+  {
+   "fieldname": "recent_statements",
+   "fieldtype": "Table",
+   "label": "Recent Statements",
+   "options": "Account Statement Reference",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-29 14:52:08.834367",
+ "modified": "2026-06-30 13:30:26.690811",
  "modified_by": "Administrator",
  "module": "Banking Integration",
  "name": "Accounts",
