@@ -15,9 +15,11 @@
   "amount",
   "currency",
   "description",
+  "send_transfer",
   "tracking_section",
-  "reference",
+  "transaction_reference",
   "status",
+  "bank_reference",
   "audit",
   "request_json",
   "response_json",
@@ -64,7 +66,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Transfer Type",
-   "options": "EFT\nRTGS\nPesalink",
+   "options": "EFT\nRTGS\nPesalink Bank\nPesalink Mobile\nSWIFT\nMobile Wallet",
    "reqd": 1
   },
   {
@@ -90,12 +92,6 @@
    "fieldname": "tracking_section",
    "fieldtype": "Section Break",
    "label": "Tracking"
-  },
-  {
-   "fieldname": "reference",
-   "fieldtype": "Data",
-   "label": "Reference",
-   "reqd": 1
   },
   {
    "fieldname": "status",
@@ -142,12 +138,28 @@
    "fieldname": "destination_balance_after",
    "fieldtype": "Currency",
    "label": "Destination Balance After"
+  },
+  {
+   "fieldname": "transaction_reference",
+   "fieldtype": "Data",
+   "label": "Transaction Reference"
+  },
+  {
+   "description": "Returned by Jenga",
+   "fieldname": "bank_reference",
+   "fieldtype": "Data",
+   "label": "Bank Reference"
+  },
+  {
+   "fieldname": "send_transfer",
+   "fieldtype": "Button",
+   "label": "Send Transfer"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-29 13:44:26.160999",
+ "modified": "2026-07-07 04:43:41.369238",
  "modified_by": "Administrator",
  "module": "Banking Integration",
  "name": "Bank Transfer",

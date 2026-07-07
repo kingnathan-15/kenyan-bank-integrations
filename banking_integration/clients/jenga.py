@@ -123,23 +123,58 @@ class JengaClient:
 
         token = self.generate_token()
 
-        url = (
-            f"{self.base_url}"
-            "/v3-apis/transaction-api/v3.0/remittance/internalBankTransfer"
+        signature_string = (
+            payload["source"]["accountNumber"]
+            + payload["transfer"]["amount"]
+            + payload["transfer"]["currencyCode"]
+            + payload["transfer"]["reference"]
         )
+
+        signature = generate_signature(signature_string)
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "signature": signature,
+        }
+
+        response = requests.post(
+            f"{self.base_url}/v3-apis/transaction-api/v3.0/remittance/internalBankTransfer",
+            headers=headers,
+            data=json.dumps(payload, separators=(",", ":")),
+            timeout=30,
+        )
+
+        print("Signing String:", signature_string)
+        print("Payload:", payload)
+        print("Response:", response.text)
+
+        response.raise_for_status()
+
+        return response.json()
+    
+    def account_inquiry(self, account_number, country_code="KE"):
+        token = self.generate_token()
+        account_number = account_number.strip()
+
+        signature_string = f"{country_code}{account_number}"
+        signature = generate_signature(signature_string)
 
         headers = {
             "Authorization": f"Bearer {token}",
             "signature": signature,
-            "Content-Type": "application/json",
         }
 
-        response = requests.post(
-            url,
-            json=payload,
+        response = requests.get(
+            f"{self.base_url}//v3-apis/account-api/v3.0/search/"
+            f"{country_code}/{account_number}",
             headers=headers,
             timeout=30,
         )
+
+        print("Status:", response.status_code)
+        print("Headers:", headers)
+        print("Body:", response.text)
 
         response.raise_for_status()
 

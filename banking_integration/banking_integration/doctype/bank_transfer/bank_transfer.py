@@ -15,19 +15,20 @@ class BankTransfer(Document):
 		from frappe.types import DF
 
 		amount: DF.Currency
+		bank_reference: DF.Data | None
 		currency: DF.Data
 		description: DF.SmallText
 		destination_account: DF.Link
 		destination_balance_after: DF.Currency
 		destination_balance_before: DF.Currency
-		reference: DF.Data
 		request_json: DF.Code | None
 		response_json: DF.Code | None
 		source_account: DF.Link
 		source_balance_after: DF.Currency
 		source_balance_before: DF.Currency
 		status: DF.Literal["Draft", "Processing", "Successful", "Failed"]
-		transfer_type: DF.Literal["EFT", "RTGS", "Pesalink"]
+		transaction_reference: DF.Data | None
+		transfer_type: DF.Literal["EFT", "RTGS", "Pesalink Bank", "Pesalink Mobile", "SWIFT", "Mobile Wallet"]
 	# end: auto-generated types
 
 	pass
