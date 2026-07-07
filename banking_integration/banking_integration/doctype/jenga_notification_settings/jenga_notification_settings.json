@@ -1,0 +1,75 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-07-07 03:54:49.692218",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "base_url",
+  "credit_alert_endpoint",
+  "deposit_endpoint",
+  "payment_confirmation_endpoint",
+  "transaction_status_endpoint",
+  "enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "base_url",
+   "fieldtype": "Data",
+   "label": "Base URL"
+  },
+  {
+   "fieldname": "credit_alert_endpoint",
+   "fieldtype": "Data",
+   "label": "Credit Alert Endpoint"
+  },
+  {
+   "fieldname": "deposit_endpoint",
+   "fieldtype": "Data",
+   "label": "Deposit Endpoint"
+  },
+  {
+   "fieldname": "payment_confirmation_endpoint",
+   "fieldtype": "Data",
+   "label": "Payment Confirmation Endpoint"
+  },
+  {
+   "fieldname": "transaction_status_endpoint",
+   "fieldtype": "Data",
+   "label": "Transaction Status Endpoint"
+  },
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-07 03:55:43.523167",
+ "modified_by": "Administrator",
+ "module": "Banking Integration",
+ "name": "Jenga Notification Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

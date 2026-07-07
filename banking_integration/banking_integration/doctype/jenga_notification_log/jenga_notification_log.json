@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-07-07 03:57:44.451942",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "notification_type",
+  "payload",
+  "processed",
+  "received_on",
+  "reference",
+  "status",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "notification_type",
+   "fieldtype": "Select",
+   "label": "Notification Type"
+  },
+  {
+   "fieldname": "payload",
+   "fieldtype": "Code",
+   "label": "Payload"
+  },
+  {
+   "default": "0",
+   "fieldname": "processed",
+   "fieldtype": "Check",
+   "label": "Processed"
+  },
+  {
+   "fieldname": "received_on",
+   "fieldtype": "Datetime",
+   "label": "Received On"
+  },
+  {
+   "fieldname": "reference",
+   "fieldtype": "Data",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Received\nProcessed\nFailed"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "error"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-07 04:01:06.119114",
+ "modified_by": "Administrator",
+ "module": "Banking Integration",
+ "name": "Jenga Notification Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
