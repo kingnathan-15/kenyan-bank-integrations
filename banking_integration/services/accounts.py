@@ -85,3 +85,19 @@ def sync_statement(account: str) -> dict:
         "imported": imported,
         "already_exists": already_exists
     }
+
+def account_inquiry(account):
+    client = JengaClient()
+
+    response = client.account_inquiry(
+        account.account_number,
+        account.country_code
+    )
+
+    account.account_name = response.get("accountName")
+    account.account_status = response.get("status")
+    account.currency = response.get("currency")
+
+    account.save(ignore_permissions=True)
+
+    return response

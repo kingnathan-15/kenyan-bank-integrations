@@ -1,0 +1,305 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-07-10 04:32:41.636966",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "transfer_details_section",
+  "source_account",
+  "transfer_type",
+  "amount",
+  "currency",
+  "description",
+  "transaction_date",
+  "sender_details_section",
+  "sender_name",
+  "sender_country_code",
+  "sender_mobile_number",
+  "sender_email",
+  "sender_document_type",
+  "sender_document_number",
+  "sender_address",
+  "destination_section",
+  "recipient_name",
+  "recipient_country",
+  "recipient_address",
+  "recipient_mobile",
+  "recipient_email",
+  "recipient_document_type",
+  "recipient_document_number",
+  "bank_fields_section",
+  "recipient_account_number",
+  "bank_code",
+  "mobile_wallet_fields_section",
+  "mobile_number",
+  "wallet_name",
+  "tracking_section",
+  "reference",
+  "status",
+  "bank_reference",
+  "send_transfer",
+  "audit_section",
+  "request_json",
+  "response_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "source_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Source Account",
+   "options": "Accounts",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sender_details_section",
+   "fieldtype": "Section Break",
+   "label": "Sender Details"
+  },
+  {
+   "fieldname": "sender_name",
+   "fieldtype": "Data",
+   "label": "Sender Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sender_document_type",
+   "fieldtype": "Select",
+   "label": "Sender Document Type",
+   "options": "National Id\nPassport\nAlien Id\nDriving License",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sender_document_number",
+   "fieldtype": "Data",
+   "label": "Sender Document Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sender_country_code",
+   "fieldtype": "Data",
+   "label": "Sender Country Code"
+  },
+  {
+   "fieldname": "sender_mobile_number",
+   "fieldtype": "Data",
+   "label": "Sender Mobile Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sender_email",
+   "fieldtype": "Data",
+   "label": "Sender Email"
+  },
+  {
+   "fieldname": "sender_address",
+   "fieldtype": "Small Text",
+   "label": "Sender Address"
+  },
+  {
+   "fieldname": "destination_section",
+   "fieldtype": "Section Break",
+   "label": "Destination "
+  },
+  {
+   "fieldname": "transfer_details_section",
+   "fieldtype": "Section Break",
+   "label": "Transfer Details "
+  },
+  {
+   "fieldname": "transfer_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Transfer Type",
+   "options": "Internal Bank\nMobile Wallet\nPesalink Account\nPesalink Mobile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference",
+   "fieldtype": "Data",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nProcessing\nSuccessful\nFailed\nPending"
+  },
+  {
+   "fieldname": "audit_section",
+   "fieldtype": "Section Break",
+   "label": "Audit"
+  },
+  {
+   "fieldname": "request_json",
+   "fieldtype": "Code",
+   "label": "Request Json",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_json",
+   "fieldtype": "Code",
+   "label": "Response Json",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.transfer_type==\"Internal Bank\" || doc.transfer_type==\"Pesalink Account\"",
+   "fieldname": "bank_fields_section",
+   "fieldtype": "Section Break",
+   "label": "Bank Fields",
+   "mandatory_depends_on": "eval:doc.transfer_type==\"Internal Bank\" || doc.transfer_type==\"Pesalink Account\""
+  },
+  {
+   "depends_on": "eval:[\n\"Internal Bank\",\n\"Pesalink Account\",\n\"Pesalink Mobile\"\n].includes(doc.transfer_type)",
+   "fieldname": "bank_code",
+   "fieldtype": "Data",
+   "label": "Bank Code",
+   "mandatory_depends_on": "eval:[\n\"Internal Bank\",\n\"Pesalink Account\",\n\"Pesalink Mobile\"\n].includes(doc.transfer_type)"
+  },
+  {
+   "depends_on": "eval:doc.transfer_type==\"Mobile Wallet\" || doc.transfer_type==\"Pesalink Mobile\"",
+   "fieldname": "mobile_wallet_fields_section",
+   "fieldtype": "Section Break",
+   "label": "Mobile Wallet Fields",
+   "mandatory_depends_on": "eval:doc.transfer_type==\"Mobile Wallet\" || doc.transfer_type==\"Pesalink Mobile\""
+  },
+  {
+   "depends_on": "eval:doc.transfer_type==\"Mobile Wallet\" || doc.transfer_type==\"Pesalink Mobile\"",
+   "fieldname": "mobile_number",
+   "fieldtype": "Data",
+   "label": "Mobile Number",
+   "mandatory_depends_on": "eval:doc.transfer_type==\"Mobile Wallet\" || doc.transfer_type==\"Pesalink Mobile\""
+  },
+  {
+   "depends_on": "eval:doc.transfer_type==\"Mobile Wallet\" || doc.transfer_type==\"Pesalink Mobile\"",
+   "fieldname": "wallet_name",
+   "fieldtype": "Select",
+   "label": "Wallet Name",
+   "mandatory_depends_on": "eval:doc.transfer_type==\"Mobile Wallet\" || doc.transfer_type==\"Pesalink Mobile\"",
+   "options": "Mpesa\nAirtelMoney\nEquitel\nTKash"
+  },
+  {
+   "fieldname": "transaction_date",
+   "fieldtype": "Date",
+   "label": "Transaction Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tracking_section",
+   "fieldtype": "Section Break",
+   "label": "Tracking"
+  },
+  {
+   "fieldname": "bank_reference",
+   "fieldtype": "Data",
+   "label": "Bank Reference"
+  },
+  {
+   "fieldname": "recipient_name",
+   "fieldtype": "Data",
+   "label": "Recipient Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "recipient_country",
+   "fieldtype": "Data",
+   "label": "Recipient Country",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.transfer_type==\"Internal Bank\"",
+   "fieldname": "recipient_address",
+   "fieldtype": "Small Text",
+   "label": "Recipient Address",
+   "mandatory_depends_on": "eval:doc.transfer_type==\"Internal Bank\""
+  },
+  {
+   "depends_on": "mandatory_depends_on\n\neval:[\n\"Internal Bank\",\n\"Pesalink Account\"\n].includes(doc.transfer_type)",
+   "fieldname": "recipient_mobile",
+   "fieldtype": "Data",
+   "label": "Recipient Mobile",
+   "mandatory_depends_on": "mandatory_depends_on\n\neval:[\n\"Internal Bank\",\n\"Pesalink Account\"\n].includes(doc.transfer_type)"
+  },
+  {
+   "depends_on": "eval:doc.transfer_type==\"Internal Bank\"",
+   "fieldname": "recipient_email",
+   "fieldtype": "Data",
+   "label": "Recipient Email",
+   "mandatory_depends_on": "eval:doc.transfer_type==\"Internal Bank\""
+  },
+  {
+   "fieldname": "recipient_document_type",
+   "fieldtype": "Select",
+   "label": "Recipient Document Type",
+   "options": "National Id\nPassport\nAlien Id\nDriving License",
+   "reqd": 1
+  },
+  {
+   "fieldname": "recipient_document_number",
+   "fieldtype": "Data",
+   "label": "Recipient Document Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "send_transfer",
+   "fieldtype": "Button",
+   "label": "Send Transfer"
+  },
+  {
+   "depends_on": "eval:doc.transfer_type==\"Internal Bank\" || doc.transfer_type==\"Pesalink Account\"",
+   "fieldname": "recipient_account_number",
+   "fieldtype": "Data",
+   "label": "Recipient Account Number",
+   "mandatory_depends_on": "eval:doc.transfer_type==\"Internal Bank\" || doc.transfer_type==\"Pesalink Account\""
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-10 06:19:29.488762",
+ "modified_by": "Administrator",
+ "module": "Banking Integration",
+ "name": "IMT Transfer",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
