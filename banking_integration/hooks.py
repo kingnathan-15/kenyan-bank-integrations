@@ -5,6 +5,37 @@ app_description = "Manages banking integrations"
 app_email = "nathan@upande.com"
 app_license = "mit"
 
+doctype_js = {
+    "Payment Entry": "public/js/payment_entry.js",
+    "Bank Account": "public/js/bank_account.js",
+}
+
+doc_events = {
+    "Payment Entry": {
+        "on_submit": (
+            "banking_integration.services.payment_entry"
+            ".create_bank_transfer_from_payment_entry"
+        ),
+        "on_cancel": (
+            "banking_integration.services.payment_entry"
+            ".on_payment_entry_cancel"
+        ),
+    }
+}
+
+fixtures = [
+    {
+        "dt": "Custom Field",
+        "filters": [
+            [
+                "dt",
+                "=",
+                "Bank Account",
+            ]
+        ],
+    }
+]
+
 # Apps
 # ------------------
 

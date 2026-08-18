@@ -76,13 +76,13 @@
    "fieldname": "account",
    "fieldtype": "Link",
    "label": "Account",
-   "options": "Accounts"
+   "options": "Bank Account"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-30 12:19:42.909494",
+ "modified": "2026-07-29 17:36:44.551208",
  "modified_by": "Administrator",
  "module": "Banking Integration",
  "name": "Account Statement",

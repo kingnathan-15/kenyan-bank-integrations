@@ -1,0 +1,89 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-08-05 18:02:05.377059",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "callback_type",
+  "transaction_reference",
+  "retrieval_reference",
+  "headers",
+  "payload",
+  "processed",
+  "bank_transfer",
+  "processing_error"
+ ],
+ "fields": [
+  {
+   "fieldname": "callback_type",
+   "fieldtype": "Select",
+   "label": "Callback Type"
+  },
+  {
+   "fieldname": "transaction_reference",
+   "fieldtype": "Data",
+   "label": "Transaction Reference"
+  },
+  {
+   "fieldname": "retrieval_reference",
+   "fieldtype": "Data",
+   "label": "Retrieval Reference"
+  },
+  {
+   "fieldname": "headers",
+   "fieldtype": "Long Text",
+   "label": "Headers"
+  },
+  {
+   "fieldname": "payload",
+   "fieldtype": "JSON",
+   "label": "Payload"
+  },
+  {
+   "default": "0",
+   "fieldname": "processed",
+   "fieldtype": "Check",
+   "label": "Processed"
+  },
+  {
+   "fieldname": "bank_transfer",
+   "fieldtype": "Link",
+   "label": "Bank Transfer",
+   "options": "Bank Transfer"
+  },
+  {
+   "fieldname": "processing_error",
+   "fieldtype": "Small Text",
+   "label": "Processing Error"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-05 18:04:02.415215",
+ "modified_by": "Administrator",
+ "module": "Banking Integration",
+ "name": "Bank Callback Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -6,7 +6,11 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_break_2xw9",
+  "provider",
+  "reference_section",
+  "reference_doctype",
+  "reference_name",
+  "source_section",
   "source_account",
   "destination_section",
   "destination_account",
@@ -15,15 +19,35 @@
   "amount",
   "currency",
   "description",
-  "send_transfer",
+  "sender_section",
+  "sender_name",
+  "sender_document_type",
+  "sender_document_number",
+  "sender_country_code",
+  "sender_mobile_number",
+  "sender_email",
+  "sender_address",
+  "beneficiary_section",
+  "beneficiary_name",
+  "beneficiary_country",
+  "beneficiary_account_number",
+  "beneficiary_mobile_number",
+  "beneficiary_document_type",
+  "beneficiary_document_number",
+  "beneficiary_email",
+  "beneficiary_address",
+  "bank_code",
+  "wallet_name",
   "tracking_section",
   "transaction_reference",
   "status",
   "bank_reference",
-  "audit",
+  "audit_section",
+  "approved_by",
+  "approved_on",
   "request_json",
   "response_json",
-  "balances",
+  "balances_section",
   "source_balance_before",
   "source_balance_after",
   "destination_balance_before",
@@ -31,16 +55,45 @@
  ],
  "fields": [
   {
-   "fieldname": "section_break_2xw9",
+   "fieldname": "provider",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Provider",
+   "options": "Banking Integration Provider",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_section",
    "fieldtype": "Section Break",
-   "label": "Source "
+   "label": "Origin"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference",
+   "options": "reference_doctype",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "source_section",
+   "fieldtype": "Section Break",
+   "label": "Source"
   },
   {
    "fieldname": "source_account",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Source Account",
-   "options": "Accounts",
+   "options": "Bank Account",
    "reqd": 1
   },
   {
@@ -53,8 +106,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Destination Account",
-   "options": "Accounts",
-   "reqd": 1
+   "options": "Bank Account"
   },
   {
    "fieldname": "transfer_details_section",
@@ -66,7 +118,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Transfer Type",
-   "options": "EFT\nRTGS\nPesalink Bank\nPesalink Mobile\nSWIFT\nMobile Wallet",
+   "options": "Internal Bank Transfer\nEFT\nRTGS\nPesalink Bank\nPesalink Mobile\nSWIFT\nMobile Wallet",
    "reqd": 1
   },
   {
@@ -89,77 +141,194 @@
    "reqd": 1
   },
   {
+   "fieldname": "sender_section",
+   "fieldtype": "Section Break",
+   "label": "Sender Details"
+  },
+  {
+   "fieldname": "sender_name",
+   "fieldtype": "Data",
+   "label": "Sender Name"
+  },
+  {
+   "fieldname": "sender_document_type",
+   "fieldtype": "Data",
+   "label": "Sender Document Type"
+  },
+  {
+   "fieldname": "sender_document_number",
+   "fieldtype": "Data",
+   "label": "Sender Document Number"
+  },
+  {
+   "fieldname": "sender_country_code",
+   "fieldtype": "Data",
+   "label": "Sender Country Code"
+  },
+  {
+   "fieldname": "sender_mobile_number",
+   "fieldtype": "Data",
+   "label": "Sender Mobile Number"
+  },
+  {
+   "fieldname": "sender_email",
+   "fieldtype": "Data",
+   "label": "Sender Email"
+  },
+  {
+   "fieldname": "sender_address",
+   "fieldtype": "Small Text",
+   "label": "Sender Address"
+  },
+  {
+   "fieldname": "beneficiary_section",
+   "fieldtype": "Section Break",
+   "label": "Beneficiary Details"
+  },
+  {
+   "fieldname": "beneficiary_name",
+   "fieldtype": "Data",
+   "label": "Beneficiary Name"
+  },
+  {
+   "fieldname": "beneficiary_country",
+   "fieldtype": "Data",
+   "label": "Beneficiary Country"
+  },
+  {
+   "fieldname": "beneficiary_account_number",
+   "fieldtype": "Data",
+   "label": "Beneficiary Account Number"
+  },
+  {
+   "fieldname": "beneficiary_mobile_number",
+   "fieldtype": "Data",
+   "label": "Beneficiary Mobile Number"
+  },
+  {
+   "fieldname": "beneficiary_document_type",
+   "fieldtype": "Data",
+   "label": "Beneficiary Document Type"
+  },
+  {
+   "fieldname": "beneficiary_document_number",
+   "fieldtype": "Data",
+   "label": "Beneficiary Document Number"
+  },
+  {
+   "fieldname": "beneficiary_email",
+   "fieldtype": "Data",
+   "label": "Beneficiary Email"
+  },
+  {
+   "fieldname": "beneficiary_address",
+   "fieldtype": "Small Text",
+   "label": "Beneficiary Address"
+  },
+  {
+   "fieldname": "bank_code",
+   "fieldtype": "Data",
+   "label": "Bank Code"
+  },
+  {
+   "fieldname": "wallet_name",
+   "fieldtype": "Data",
+   "label": "Wallet Name"
+  },
+  {
    "fieldname": "tracking_section",
    "fieldtype": "Section Break",
    "label": "Tracking"
   },
   {
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "label": "Status",
-   "options": "Draft\nProcessing\nSuccessful\nFailed"
+   "fieldname": "transaction_reference",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Transaction Reference",
+   "read_only": 1
   },
   {
-   "fieldname": "audit",
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nPending Approval\nApproved\nProcessing\nSuccessful\nFailed",
+   "read_only": 1
+  },
+  {
+   "description": "Reference returned by the banking provider",
+   "fieldname": "bank_reference",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Bank Reference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "audit_section",
    "fieldtype": "Section Break",
    "label": "Audit"
   },
   {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Approved On",
+   "read_only": 1
+  },
+  {
    "fieldname": "request_json",
    "fieldtype": "Code",
-   "label": "Request JSON"
+   "label": "Request JSON",
+   "options": "JSON",
+   "read_only": 1
   },
   {
    "fieldname": "response_json",
    "fieldtype": "Code",
-   "label": "Response JSON"
+   "label": "Response JSON",
+   "options": "JSON",
+   "read_only": 1
   },
   {
-   "fieldname": "balances",
+   "fieldname": "balances_section",
    "fieldtype": "Section Break",
    "label": "Balances"
   },
   {
    "fieldname": "source_balance_before",
    "fieldtype": "Currency",
-   "label": "Source Balance Before"
+   "label": "Source Balance Before",
+   "read_only": 1
   },
   {
    "fieldname": "source_balance_after",
    "fieldtype": "Currency",
-   "label": "Source Balance After"
+   "label": "Source Balance After",
+   "read_only": 1
   },
   {
    "fieldname": "destination_balance_before",
    "fieldtype": "Currency",
-   "label": "Destination Balance Before"
+   "label": "Destination Balance Before",
+   "read_only": 1
   },
   {
    "fieldname": "destination_balance_after",
    "fieldtype": "Currency",
-   "label": "Destination Balance After"
-  },
-  {
-   "fieldname": "transaction_reference",
-   "fieldtype": "Data",
-   "label": "Transaction Reference"
-  },
-  {
-   "description": "Returned by Jenga",
-   "fieldname": "bank_reference",
-   "fieldtype": "Data",
-   "label": "Bank Reference"
-  },
-  {
-   "fieldname": "send_transfer",
-   "fieldtype": "Button",
-   "label": "Send Transfer"
+   "label": "Destination Balance After",
+   "read_only": 1
   }
  ],
- "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-07 04:43:41.369238",
+ "modified": "2026-07-21 18:42:19.506202",
  "modified_by": "Administrator",
  "module": "Banking Integration",
  "name": "Bank Transfer",
@@ -179,7 +348,6 @@
   }
  ],
  "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": []

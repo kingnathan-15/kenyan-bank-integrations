@@ -1,16 +1,11 @@
-import requests
-import frappe
 from base64 import b64encode
+
 from Crypto.Hash import SHA256
-from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
+from Crypto.Signature import PKCS1_v1_5
 
 
-def generate_signature(signature_string):
-    credentials = frappe.get_single("Jenga Credentials")
-
-    private_key_pem = credentials.private_key
-
+def generate_signature(signature_string, private_key_pem):
     message_bytes = signature_string.encode("utf-8")
     digest = SHA256.new(message_bytes)
 
@@ -20,3 +15,4 @@ def generate_signature(signature_string):
     signature = signer.sign(digest)
 
     return b64encode(signature).decode("utf-8")
+
