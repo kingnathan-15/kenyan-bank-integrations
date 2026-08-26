@@ -7,21 +7,12 @@ from frappe.utils import today
 
 from banking_integration.clients.jenga import JengaClient
 from banking_integration.clients.stanbic import StanbicClient
+from banking_integration.clients.kcb import KCBClient
 from banking_integration.services.balances import refresh_balance
 from banking_integration.services.providers import (
     get_bank_account_credentials,
 )
 from banking_integration.utils.reference import generate_reference
-
-
-JENGA_TRANSFER_TYPE_MAP = {
-    "EFT": "InternalFundsTransfer",
-    "RTGS": "InternalFundsTransfer",
-    "Pesalink Bank": "Pesalink",
-    "Pesalink Mobile": "Pesalink",
-    "SWIFT": "InternationalRemittance",
-    "Mobile Wallet": "MobileWallet",
-}
 
 
 STANBIC_ENDPOINT_MAP = {
@@ -34,12 +25,18 @@ STANBIC_ENDPOINT_MAP = {
 }
 
 
+# =====================================================================
+# MAIN TRANSFER DISPATCHER
+# =====================================================================
+
+
 def send_money(bank_transfer: str):
     """
     Send an approved Bank Transfer through its configured provider.
 
-    Bank Transfer is a tracking document. The actual source account
-    is always an ERPNext Bank Account.
+    Bank Transfer is the ERP tracking document.
+    The actual money movement is performed by the configured
+    banking provider.
     """
 
     doc = frappe.get_doc(
@@ -55,28 +52,45 @@ def send_money(bank_transfer: str):
         )
 
     dispatcher = {
-        "Jenga": _send_via_jenga,
-        "Stanbic": _send_via_stanbic,
-    }.get(doc.provider)
+    "Equity Bank Kenya": _send_via_jenga,
+    "Stanbic Bank Kenya": _send_via_stanbic,
+    "KCB Bank Kenya": _send_via_kcb,
+}.get(doc.bank)
 
     if not dispatcher:
         frappe.throw(
             _(
-                "Unsupported provider: {0}"
+                "Unsupported bank: {0}"
             ).format(
-                doc.provider
+                doc.bank
+            )
+        )
+
+    # Prevent accidental double submission.
+    if doc.status in (
+        "Processing",
+        "Successful",
+    ):
+        frappe.throw(
+            _(
+                "Bank Transfer {0} has already been submitted."
+            ).format(
+                doc.name
             )
         )
 
     doc.status = "Processing"
+
     doc.save(
         ignore_permissions=True
     )
 
     try:
+
         dispatcher(doc)
 
     except Exception as e:
+
         doc.status = "Failed"
 
         doc.response_json = frappe.as_json(
@@ -97,12 +111,19 @@ def send_money(bank_transfer: str):
     return doc
 
 
-# ---------------------------------------------------------------------
-# Jenga
-# ---------------------------------------------------------------------
+# =====================================================================
+# JENGA
+# =====================================================================
 
 
 def _send_via_jenga(doc):
+    """
+    Dispatch a Bank Transfer to the correct Jenga transaction API.
+
+    Each transaction type has its own payload builder and its own
+    JengaClient method.
+    """
+
     source = frappe.get_doc(
         "Bank Account",
         doc.source_account,
@@ -123,7 +144,12 @@ def _send_via_jenga(doc):
 
     doc.transaction_reference = reference
 
+    # ---------------------------------------------------------------
+    # Internal Bank Transfer
+    # ---------------------------------------------------------------
+
     if doc.transfer_type == "Internal Bank Transfer":
+
         response = _jenga_internal_transfer(
             client=client,
             doc=doc,
@@ -131,8 +157,13 @@ def _send_via_jenga(doc):
             reference=reference,
         )
 
-    else:
-        payload = _build_jenga_external_payload(
+    # ---------------------------------------------------------------
+    # RTGS
+    # ---------------------------------------------------------------
+
+    elif doc.transfer_type == "RTGS":
+
+        payload = _build_jenga_rtgs_payload(
             doc=doc,
             source=source,
             reference=reference,
@@ -143,9 +174,128 @@ def _send_via_jenga(doc):
             indent=2,
         )
 
-        response = client.send_transfer(
+        response = client.rtgs_transfer(
             payload
         )
+
+    # ---------------------------------------------------------------
+    # Pesalink - Bank Account
+    # ---------------------------------------------------------------
+
+    elif doc.transfer_type == "Pesalink Bank":
+
+        payload = _build_jenga_pesalink_account_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        doc.request_json = frappe.as_json(
+            payload,
+            indent=2,
+        )
+
+        response = client.pesalink_account_transfer(
+            payload
+        )
+
+    # ---------------------------------------------------------------
+    # Pesalink - Mobile
+    # ---------------------------------------------------------------
+
+    elif doc.transfer_type == "Pesalink Mobile":
+
+        payload = _build_jenga_pesalink_mobile_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        doc.request_json = frappe.as_json(
+            payload,
+            indent=2,
+        )
+
+        response = client.pesalink_mobile_transfer(
+            payload
+        )
+
+    # ---------------------------------------------------------------
+    # Mobile Wallet
+    # ---------------------------------------------------------------
+
+    elif doc.transfer_type == "Mobile Wallet":
+
+        payload = _build_jenga_mobile_wallet_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        doc.request_json = frappe.as_json(
+            payload,
+            indent=2,
+        )
+
+        response = client.mobile_wallet_transfer(
+            payload
+        )
+
+    # ---------------------------------------------------------------
+    # SWIFT
+    # ---------------------------------------------------------------
+
+    elif doc.transfer_type == "SWIFT":
+
+        payload = _build_jenga_swift_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        doc.request_json = frappe.as_json(
+            payload,
+            indent=2,
+        )
+
+        response = client.swift_transfer(
+            payload
+        )
+
+    # ---------------------------------------------------------------
+    # Subsidiary
+    # ---------------------------------------------------------------
+
+    elif doc.transfer_type == "Subsidiary":
+
+        payload = _build_jenga_subsidiary_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        doc.request_json = frappe.as_json(
+            payload,
+            indent=2,
+        )
+
+        response = client.subsidiary_transfer(
+            payload
+        )
+
+    else:
+
+        frappe.throw(
+            _(
+                "Jenga transfer type {0} is not supported."
+            ).format(
+                doc.transfer_type
+            )
+        )
+
+    # ---------------------------------------------------------------
+    # Save API response
+    # ---------------------------------------------------------------
 
     doc.response_json = frappe.as_json(
         response,
@@ -155,6 +305,7 @@ def _send_via_jenga(doc):
     doc.bank_reference = (
         response.get("reference")
         or response.get("transactionId")
+        or response.get("data", {}).get("transactionId")
     )
 
     doc.status = (
@@ -172,54 +323,55 @@ def _send_via_jenga(doc):
     return response
 
 
+# =====================================================================
+# JENGA - INTERNAL BANK TRANSFER
+# =====================================================================
+
+
 def _jenga_internal_transfer(
     client,
     doc,
     source,
     reference,
 ):
+    """
+    Build and send an internal transfer between Equity/Jenga
+    supported bank accounts.
+    """
+
     destination = frappe.get_doc(
         "Bank Account",
         doc.destination_account,
     )
 
-    refresh_balance(
-        source
-    )
-
-    refresh_balance(
-        destination
-    )
+    # ---------------------------------------------------------------
+    # Capture currently stored balances
+    # ---------------------------------------------------------------
 
     doc.source_balance_before = (
         source.custom_reported_balance
     )
 
-    doc.destination_balance_before = (
-        destination.custom_reported_balance
-    )
+
+    # ---------------------------------------------------------------
+    # Build payload
+    # ---------------------------------------------------------------
 
     payload = {
         "source": {
-            "countryCode": _get_country_code(
-                source
-            ),
+            "countryCode": _get_country_code(source),
             "name": source.account_name,
             "accountNumber": source.bank_account_no,
         },
         "destination": {
             "type": "bank",
-            "countryCode": _get_country_code(
-                destination
-            ),
+            "countryCode": _get_country_code(destination),
             "name": destination.account_name,
             "accountNumber": destination.bank_account_no,
         },
         "transfer": {
             "type": "InternalFundsTransfer",
-            "amount": str(
-                doc.amount
-            ),
+            "amount": str(doc.amount),
             "currencyCode": doc.currency,
             "reference": reference,
             "date": today(),
@@ -232,54 +384,121 @@ def _jenga_internal_transfer(
         indent=2,
     )
 
+    # ---------------------------------------------------------------
+    # Send transfer
+    # ---------------------------------------------------------------
+
     response = client.internal_bank_transfer(
         payload
     )
 
+    # ---------------------------------------------------------------
+    # Refresh balances AFTER successful transfer
+    # ---------------------------------------------------------------
+
     if response.get("status") is True:
-        refresh_balance(
-            source
-        )
 
-        refresh_balance(
-            destination
-        )
+        try:
+            refresh_balance(source.name)
+            refresh_balance(destination.name)
 
-        doc.source_balance_after = (
-            source.custom_reported_balance
-        )
+            # Reload because refresh_balance() saves the documents
+            source.reload()
+            destination.reload()
 
-        doc.destination_balance_after = (
-            destination.custom_reported_balance
-        )
+            doc.source_balance_after = (
+                source.custom_reported_balance
+            )
+
+        except Exception:
+            frappe.log_error(
+                frappe.get_traceback(),
+                "Jenga Internal Transfer - Balance Refresh Failed",
+            )
 
     return response
 
+# =====================================================================
+# JENGA - RTGS
+# =====================================================================
 
-def _build_jenga_external_payload(
+
+def _build_jenga_rtgs_payload(
     doc,
     source,
     reference,
 ):
-    payload = {
+    """
+    Build the payload required by Jenga RTGS.
+    """
+
+    return {
+        "source": {
+            "countryCode": _get_country_code(source),
+            "currency": doc.currency,
+            "name": source.account_name,
+            "accountNumber": source.bank_account_no,
+        },
+
+        "destination": {
+            "type": "bank",
+            "countryCode": doc.beneficiary_country,
+            "name": doc.beneficiary_name,
+            "bankCode": doc.bank_code,
+            "accountNumber": doc.beneficiary_account_number,
+        },
+
+        "transfer": {
+            "type": "RTGS",
+            "amount": str(doc.amount),
+            "currencyCode": doc.currency,
+            "reference": reference,
+            "date": today(),
+            "description": doc.description,
+            "purposeOfPaymentCode": (
+                doc.purpose_of_payment_code
+                if getattr(
+                    doc,
+                    "purpose_of_payment_code",
+                    None,
+                )
+                else "OTHR"
+            ),
+        },
+    }
+
+# =====================================================================
+# JENGA - PESALINK BANK ACCOUNT
+# =====================================================================
+
+
+def _build_jenga_pesalink_account_payload(
+    doc,
+    source,
+    reference,
+):
+    """
+    Build Pesalink-to-bank-account payload.
+    """
+
+    return {
         "source": {
             "countryCode": _get_country_code(
                 source
             ),
+            "currency": doc.currency,
             "name": source.account_name,
             "accountNumber": source.bank_account_no,
         },
-        "sender": {
-            "name": doc.sender_name,
-            "documentType": doc.sender_document_type,
-            "documentNumber": doc.sender_document_number,
-            "countryCode": doc.sender_country_code,
-            "mobileNumber": doc.sender_mobile_number,
-            "email": doc.sender_email,
-            "address": doc.sender_address,
+        "destination": {
+            "type": "bank",
+            "countryCode": doc.beneficiary_country,
+            "name": doc.beneficiary_name,
+            "bankCode": doc.bank_code,
+            "accountNumber": doc.beneficiary_account_number,
         },
-        "destination": {},
         "transfer": {
+            "type": "Pesalink",
             "amount": str(
                 doc.amount
             ),
@@ -287,50 +506,207 @@ def _build_jenga_external_payload(
             "reference": reference,
             "date": today(),
             "description": doc.description,
-            "type": JENGA_TRANSFER_TYPE_MAP.get(
-                doc.transfer_type,
-                doc.transfer_type,
-            ),
         },
     }
 
-    if doc.transfer_type in (
-        "Pesalink Mobile",
-        "Mobile Wallet",
-    ):
-        payload["destination"] = {
+
+# =====================================================================
+# JENGA - PESALINK MOBILE
+# =====================================================================
+
+
+def _build_jenga_pesalink_mobile_payload(
+    doc,
+    source,
+    reference,
+):
+    """
+    Build Pesalink-to-mobile-number payload.
+    """
+
+    return {
+        "source": {
+            "countryCode": _get_country_code(
+                source
+            ),
+            "currency": doc.currency,
+            "name": source.account_name,
+            "accountNumber": source.bank_account_no,
+        },
+        "destination": {
+            "type": "mobile",
+            "countryCode": doc.beneficiary_country,
+            "name": doc.beneficiary_name,
+            "mobileNumber": doc.beneficiary_mobile_number,
+        },
+        "transfer": {
+            "type": "PesalinkMobile",
+            "amount": str(
+                doc.amount
+            ),
+            "currencyCode": doc.currency,
+            "reference": reference,
+            "date": today(),
+            "description": doc.description,
+        },
+    }
+
+
+# =====================================================================
+# JENGA - MOBILE WALLET
+# =====================================================================
+
+
+def _build_jenga_mobile_wallet_payload(
+    doc,
+    source,
+    reference,
+):
+    """
+    Build mobile-wallet transfer payload.
+    """
+
+    return {
+        "source": {
+            "countryCode": _get_country_code(
+                source
+            ),
+            "currency": doc.currency,
+            "name": source.account_name,
+            "accountNumber": source.bank_account_no,
+        },
+        "destination": {
             "type": "mobile",
             "countryCode": doc.beneficiary_country,
             "name": doc.beneficiary_name,
             "mobileNumber": doc.beneficiary_mobile_number,
             "walletName": doc.wallet_name,
-            "documentType": doc.beneficiary_document_type,
-            "documentNumber": doc.beneficiary_document_number,
-        }
+        },
+        "transfer": {
+            "type": "MobileWallet",
+            "amount": str(
+                doc.amount
+            ),
+            "currencyCode": doc.currency,
+            "reference": reference,
+            "date": today(),
+            "description": doc.description,
+        },
+    }
 
-    else:
-        payload["destination"] = {
+
+# =====================================================================
+# JENGA - SWIFT
+# =====================================================================
+
+
+def _build_jenga_swift_payload(
+    doc,
+    source,
+    reference,
+):
+    """
+    Build the Jenga SWIFT transfer payload.
+    """
+
+    source_currency = frappe.db.get_value(
+        "Account",
+        source.account,
+        "account_currency",
+    )
+
+    if not source_currency:
+        frappe.throw(
+            _(
+                "Could not determine the currency for source Account {0}."
+            ).format(
+                source.account
+            )
+        )
+
+    return {
+        "source": {
+            "countryCode": _get_country_code(source),
+            "sourceCurrency": source_currency,
+            "name": doc.sender_name or source.account_name,
+            "accountNumber": source.bank_account_no,
+        },
+
+        "destination": {
+            "type": "bank",
+            "countryCode": doc.beneficiary_country,
+            "currency": doc.destination_currency,
+            "name": doc.beneficiary_name,
+            "bankBic": doc.bank_bic,
+            "accountNumber": doc.beneficiary_account_number,
+            "addressline1": doc.beneficiary_address,
+        },
+
+        "transfer": {
+            "type": "SWIFT",
+            "amount": str(doc.amount),
+            "currencyCode": doc.destination_currency,
+            "reference": reference,
+            "date": today(),
+            "description": doc.description,
+        },
+    }
+
+# =====================================================================
+# JENGA - SUBSIDIARY
+# =====================================================================
+
+
+def _build_jenga_subsidiary_payload(
+    doc,
+    source,
+    reference,
+):
+    """
+    Build Equity subsidiary transfer payload.
+    """
+
+    return {
+        "source": {
+            "countryCode": _get_country_code(
+                source
+            ),
+            "currency": doc.currency,
+            "name": source.account_name,
+            "accountNumber": source.bank_account_no,
+        },
+        "destination": {
             "type": "bank",
             "countryCode": doc.beneficiary_country,
             "name": doc.beneficiary_name,
             "bankCode": doc.bank_code,
             "accountNumber": doc.beneficiary_account_number,
-            "mobileNumber": doc.beneficiary_mobile_number,
-            "documentType": doc.beneficiary_document_type,
-            "documentNumber": doc.beneficiary_document_number,
-            "email": doc.beneficiary_email,
-            "address": doc.beneficiary_address,
-        }
+        },
+        "transfer": {
+            "type": "Subsidiary",
+            "amount": str(
+                doc.amount
+            ),
+            "currencyCode": doc.currency,
+            "reference": reference,
+            "date": today(),
+            "description": doc.description,
+        },
+    }
 
-    return payload
 
-
-# ---------------------------------------------------------------------
-# Stanbic
-# ---------------------------------------------------------------------
-
+# =====================================================================
+# STANBIC
+# =====================================================================
 
 def _send_via_stanbic(doc):
+    """
+    Send a Bank Transfer through Stanbic.
+
+    The payment rail is determined by doc.transfer_type and mapped
+    to the corresponding Stanbic sandbox API.
+    """
+
     source = frappe.get_doc(
         "Bank Account",
         doc.source_account,
@@ -351,11 +727,82 @@ def _send_via_stanbic(doc):
 
     doc.transaction_reference = reference
 
-    endpoint = STANBIC_ENDPOINT_MAP.get(
-        doc.transfer_type
-    )
+    # ---------------------------------------------------------------
+    # Stanbic payment rail
+    # ---------------------------------------------------------------
 
-    if not endpoint:
+    if doc.transfer_type == "EFT":
+
+        payload = _build_stanbic_eft_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        endpoint = "/api/sandbox/eft-payments/"
+
+    elif doc.transfer_type == "Pesalink Bank":
+
+        payload = _build_stanbic_pesalink_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        endpoint = "/api/sandbox/pesalink-payments/"
+
+    elif doc.transfer_type == "RTGS":
+
+        payload = _build_stanbic_rtgs_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        endpoint = "/api/sandbox/rtgs-payments/"
+
+    elif doc.transfer_type == "B2C":
+
+        payload = _build_stanbic_b2c_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        endpoint = "/api/sandbox/stanbic-payments/"
+
+    elif doc.transfer_type == "Mobile Wallet":
+
+        payload = _build_stanbic_mobile_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        endpoint = "/api/sandbox/mobile-payments/"
+
+    elif doc.transfer_type == "STK Push":
+
+        payload = _build_stanbic_stk_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        endpoint = "/api/sandbox/mpesa-checkout/"
+
+    elif doc.transfer_type == "Internal Bank Transfer":
+
+        payload = _build_stanbic_internal_transfer_payload(
+            doc=doc,
+            source=source,
+            reference=reference,
+        )
+
+        endpoint = "/api/sandbox/inter-account-transfer/"
+
+    else:
+
         frappe.throw(
             _(
                 "Transfer Type {0} is not supported for Stanbic."
@@ -364,32 +811,31 @@ def _send_via_stanbic(doc):
             )
         )
 
-    payload = {
-        "sourceAccount": source.bank_account_no,
-        "beneficiaryName": doc.beneficiary_name,
-        "beneficiaryAccount": (
-            doc.beneficiary_account_number
-        ),
-        "bankCode": doc.bank_code,
-        "mobileNumber": (
-            doc.beneficiary_mobile_number
-        ),
-        "amount": str(
-            doc.amount
-        ),
-        "currency": doc.currency,
-        "narration": doc.description,
-        "reference": reference,
-    }
+    # ---------------------------------------------------------------
+    # Store request
+    # ---------------------------------------------------------------
 
     doc.request_json = frappe.as_json(
         payload,
         indent=2,
     )
 
+    # ---------------------------------------------------------------
+    # Send request
+    # ---------------------------------------------------------------
+
     result = client.post(
         endpoint,
         payload,
+    )
+
+    # ---------------------------------------------------------------
+    # Store response
+    # ---------------------------------------------------------------
+
+    doc.response_json = frappe.as_json(
+        result,
+        indent=2,
     )
 
     response_data = result.get(
@@ -397,23 +843,203 @@ def _send_via_stanbic(doc):
         {},
     )
 
-    doc.response_json = frappe.as_json(
-        response_data,
-        indent=2,
-    )
-
     doc.bank_reference = (
-        response_data.get(
-            "transactionId"
-        )
-        or response_data.get(
-            "reference"
-        )
+        response_data.get("dbsReferenceId")
+        or response_data.get("bankReferenceId")
+        or response_data.get("transactionId")
+        or response_data.get("reference")
+        or reference
     )
 
     doc.status = (
         "Successful"
         if result.get("success")
+        else "Failed"
+    )
+
+    doc.save(ignore_permissions=True)
+
+    frappe.db.commit()
+
+    return result
+
+def _build_stanbic_eft_payload(
+    doc,
+    source,
+    reference,
+):
+    return {
+        "SourceChannel": "BCBC",
+        "SourceMsgId": reference,
+        "CreatedTime": frappe.utils.now_datetime().strftime(
+            "%H:%M"
+        ),
+        "DebitAccount": source.bank_account_no,
+        "DBPUniqueTransactionNumber": reference,
+        "BeneficiaryAcctNo": doc.beneficiary_account_number,
+        "BeneficiaryName": doc.beneficiary_name,
+        "BeneficiaryBankCode": doc.bank_code or "17000",
+        "BeneficiaryAddr": "Nairobi",
+        "ExchangeRate": "",
+        "CreditAmount": str(doc.amount),
+        "CreditCurrency": doc.currency or "KES",
+        "PaymentDetails": (
+            doc.description or "EFT Payment"
+        )[:35],
+        "FxDealId": "",
+        "Execute": "1",
+        "PaymentType": "SBK.BCB.EFT.CREDIT",
+        "ExecutionDate": frappe.utils.today(),
+        "Attachments": [],
+    }
+
+def _build_stanbic_rtgs_payload(
+    doc,
+    source,
+    reference,
+):
+    """
+    Build the Stanbic RTGS payment payload.
+    """
+
+    return {
+        "originatorAccount": {
+            "identification": {
+                "identification": source.bank_account_no,
+                "debitCurrency": doc.currency or "KES",
+                "mobileNumber": (
+                    doc.sender_mobile_number
+                    or ""
+                ),
+            }
+        },
+
+        "requestedExecutionDate": (
+            frappe.utils.today()
+        ),
+
+        "dbsReferenceId": reference,
+
+        "txnNarrative": (
+            doc.description
+            or "RTGS Payment"
+        ),
+
+        "callBackUrl": frappe.utils.get_url(
+            "/api/method/banking_integration.banking_integration.api.callbacks.stanbic.handle_payment_notification"
+        ),
+
+        "transferTransactionInformation": {
+            "instructedAmount": {
+                "amount": str(doc.amount),
+                "creditCurrency": (
+                    doc.currency or "KES"
+                ),
+            },
+
+            "counterpartyAccount": {
+                "identification": {
+                    "identification": (
+                        doc.beneficiary_account_number
+                    ),
+                    "beneficiaryBank": (
+                        doc.bank_code or ""
+                    ),
+                    "beneficiaryChargeType": "SHA",
+                }
+            },
+
+            "counterparty": {
+                "name": doc.beneficiary_name,
+
+                "postalAddress": {
+                    "addressLine": (
+                        doc.beneficiary_address
+                        or "KENYA"
+                    ),
+                    "postCode": "00100",
+                    "town": "Nairobi",
+                    "country": (
+                        doc.beneficiary_country
+                        or "KE"
+                    ),
+                }
+            },
+
+            "remittanceInformation": {
+                "type": "UNSTRUCTURED",
+                "content": (
+                    doc.description
+                    or "RTGS Payment"
+                ),
+            },
+
+            "endToEndIdentification": reference,
+        },
+    }
+
+# =====================================================================
+# KCB
+# =====================================================================
+
+def _send_via_kcb(doc):
+
+    source = frappe.get_doc(
+        "Bank Account",
+        doc.source_account,
+    )
+
+    credentials = get_bank_account_credentials(
+        source
+    )
+
+    client = KCBClient(
+        credentials=credentials
+    )
+
+    reference = (
+        doc.transaction_reference
+        or generate_reference()
+    )
+
+    # KCB allows a maximum of 12 characters
+    reference = reference[:12]
+
+    doc.transaction_reference = reference
+
+    payload = _build_kcb_funds_transfer_payload(
+        doc=doc,
+        source=source,
+        reference=reference,
+    )
+
+    doc.request_json = frappe.as_json(
+        payload,
+        indent=2,
+    )
+
+    response = client.funds_transfer(
+        payload
+    )
+
+    doc.response_json = frappe.as_json(
+        response,
+        indent=2,
+    )
+
+    header = response.get(
+        "header",
+        {},
+    )
+
+    doc.bank_reference = (
+        header.get("retrievalRefNumber")
+        or header.get("messageID")
+    )
+
+    doc.status = (
+        "Successful"
+        if header.get("statusCode") == "0"
         else "Failed"
     )
 
@@ -423,15 +1049,33 @@ def _send_via_stanbic(doc):
 
     frappe.db.commit()
 
-    return result
+    return response
+
+
+
+def _build_kcb_funds_transfer_payload(doc, source, reference):
+    # Using hardcoded values for the sandbox until whitelisted.
+    # Later, companyCode can be moved to Bank Integration Credentials.
+    return {
+        "companyCode": "KE0010001", 
+        "transactionType": "IF",
+        "debitAccountNumber": source.bank_account_no, # Ensure this is the whitelisted one
+        "creditAccountNumber": doc.beneficiary_account_number,
+        "debitAmount": float(doc.amount),
+        "paymentDetails": doc.description[:35], 
+        "transactionReference": reference,
+        "currency": doc.currency,
+        "beneficiaryDetails": doc.beneficiary_name[:35], # Enforcing KCB's 35 char limit
+        "beneficiaryBankCode": doc.bank_code,
+    }
+# =====================================================================
+# HELPERS
+# =====================================================================
 
 
 def _get_country_code(bank_account):
     """
-    Return the country code used by the banking API.
-
-    `country_code` is expected to be a custom field on
-    ERPNext's Bank Account doctype.
+    Return the country code configured on the Bank Account.
     """
 
     country_code = getattr(

@@ -8,6 +8,7 @@ app_license = "mit"
 doctype_js = {
     "Payment Entry": "public/js/payment_entry.js",
     "Bank Account": "public/js/bank_account.js",
+    "Account Statement": "public/js/account_statement_list.js",
 }
 
 doc_events = {
@@ -21,6 +22,9 @@ doc_events = {
             ".on_payment_entry_cancel"
         ),
     }
+}
+doctype_dashboards = {
+    "Payment Entry": "banking_integration.banking_integration.doctype.payment_entry.payment_entry_dashboard"
 }
 
 fixtures = [

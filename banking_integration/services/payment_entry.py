@@ -112,13 +112,11 @@ def create_bank_transfer_from_payment_entry(doc, method=None):
     # Provider
     # ---------------------------------------------------------
 
-    provider = get_provider(source)
+    bank = source.bank
 
-    if not provider:
+    if not bank:
         frappe.throw(
-            _(
-                "No banking provider configured for {0}."
-            ).format(
+            _("No Bank is configured for {0}.").format(
                 source.name
             )
         )
@@ -148,7 +146,7 @@ def create_bank_transfer_from_payment_entry(doc, method=None):
         reference_doctype="Payment Entry",
         reference_name=doc.name,
 
-        provider=provider,
+        bank=bank,
 
         source_account=source.name,
         destination_account=destination.name,
@@ -170,6 +168,10 @@ def create_bank_transfer_from_payment_entry(doc, method=None):
 
         beneficiary_account_number=(
             destination.bank_account_no
+        ),
+
+        bank_code=(
+            destination.custom_bank_code
         ),
     )
 
@@ -194,18 +196,12 @@ def get_party_bank_account(
     )
 
 
-def get_provider(bank_account):
-    """
-    Get the banking integration provider configured
-    on the Bank Account.
-    """
-
+def get_bank(bank_account):
     return frappe.db.get_value(
         "Bank Account",
         bank_account.name,
-        "custom_provider",
+        "bank",
     )
-
 
 def get_transfer_type(payment_entry):
 

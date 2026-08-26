@@ -1,12 +1,22 @@
 import frappe
 
 
-def get_provider_credentials(provider, environment=None):
-    if not provider:
-        frappe.throw("Bank Integration Provider is required")
+def get_bank_credentials(bank, environment=None):
+    """
+    Get integration credentials for an ERPNext Bank.
+
+    The Bank Integration Credentials record is matched using
+    the `bank` field.
+    """
+
+    if isinstance(bank, str):
+        bank = frappe.get_doc("Bank", bank)
+
+    if not bank:
+        frappe.throw("Bank is required")
 
     filters = {
-        "provider": provider,
+        "bank": bank.name,
     }
 
     if environment:
@@ -20,8 +30,12 @@ def get_provider_credentials(provider, environment=None):
 
     if not credentials_name:
         frappe.throw(
-            f"No credentials found for provider {provider}"
-            + (f" in {environment} environment" if environment else "")
+            f"No integration credentials found for Bank {bank.name}"
+            + (
+                f" in {environment} environment"
+                if environment
+                else ""
+            )
         )
 
     return frappe.get_doc(
@@ -31,17 +45,23 @@ def get_provider_credentials(provider, environment=None):
 
 
 def get_bank_account_credentials(bank_account):
+    """
+    Get integration credentials from the Bank linked to a Bank Account.
+
+    Bank Account -> Bank -> Bank Integration Credentials
+    """
+
     if isinstance(bank_account, str):
         bank_account = frappe.get_doc(
             "Bank Account",
             bank_account,
         )
 
-    if not bank_account.custom_provider:
+    if not bank_account.bank:
         frappe.throw(
-            f"Bank Account {bank_account.name} has no integration provider configured"
+            f"Bank Account {bank_account.name} has no Bank configured"
         )
 
-    return get_provider_credentials(
-        bank_account.custom_provider,
+    return get_bank_credentials(
+        bank_account.bank,
     )

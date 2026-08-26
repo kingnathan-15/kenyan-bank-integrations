@@ -8,7 +8,7 @@ from frappe.utils.password import check_password
 
 
 ALLOWED_TRANSFER_TYPES = {
-    "Jenga": {
+    "Equity Bank Kenya": {
         "Internal Bank Transfer",
         "EFT",
         "RTGS",
@@ -17,13 +17,16 @@ ALLOWED_TRANSFER_TYPES = {
         "SWIFT",
         "Mobile Wallet",
     },
-    "Stanbic": {
+    "Stanbic Bank Kenya": {
         "Pesalink Bank",
         "Pesalink Mobile",
         "RTGS",
         "Mobile Wallet",
         "B2C",
         "STK Push",
+    },
+    "KCB Bank Kenya": {
+        # Add the transfer types supported by your KCB integration
     },
 }
 
@@ -45,6 +48,8 @@ class BankTransfer(Document):
         amount: DF.Currency
         approved_by: DF.Link | None
         approved_on: DF.Datetime | None
+        bank: DF.Link
+        bank_bic: DF.Data | None
         bank_code: DF.Data | None
         bank_reference: DF.Data | None
         beneficiary_account_number: DF.Data | None
@@ -60,7 +65,8 @@ class BankTransfer(Document):
         destination_account: DF.Link | None
         destination_balance_after: DF.Currency
         destination_balance_before: DF.Currency
-        provider: DF.Link
+        destination_currency: DF.Literal["KES", "USD", "EUR", "GBP"]
+        payment_entry: DF.Link | None
         reference_doctype: DF.Link
         reference_name: DF.DynamicLink
         request_json: DF.Code | None
@@ -82,9 +88,10 @@ class BankTransfer(Document):
     # end: auto-generated types
     def validate(self):
         self.validate_origin()
-        self.validate_provider_transfer_type()
+        self.validate_bank_transfer_type()
         self.validate_source_account()
         self.validate_amount()
+        self.validate_swift_fields()
 
         if not self.currency and self.source_account:
             self.currency = (
@@ -95,7 +102,7 @@ class BankTransfer(Document):
                 )
                 or "KES"
             )
-
+            
     def validate_origin(self):
         if self.reference_doctype not in ALLOWED_ORIGIN_DOCTYPES:
             frappe.throw(
@@ -132,24 +139,24 @@ class BankTransfer(Document):
                 )
             )
 
-    def validate_provider_transfer_type(self):
-        if not self.provider:
+    def validate_bank_transfer_type(self):
+        if not self.bank:
             frappe.throw(
-                _("A provider is required.")
+                _("A Bank is required.")
             )
 
         allowed = ALLOWED_TRANSFER_TYPES.get(
-            self.provider,
+            self.bank,
             set(),
         )
 
         if self.transfer_type not in allowed:
             frappe.throw(
                 _(
-                    "Transfer Type {0} is not supported by provider {1}."
+                    "Transfer Type {0} is not supported by bank {1}."
                 ).format(
                     frappe.bold(self.transfer_type),
-                    frappe.bold(self.provider),
+                    frappe.bold(self.bank),
                 )
             )
 
@@ -177,6 +184,16 @@ class BankTransfer(Document):
                 _("Amount must be greater than zero.")
             )
 
+    def validate_swift_fields(self):
+
+        if self.transfer_type != "SWIFT":
+            return
+
+        if not self.bank_bic:
+            frappe.throw(_("Bank BIC / SWIFT Code is required for SWIFT transfers."))
+
+        if not self.destination_currency:
+            frappe.throw(_("Destination Currency is required for SWIFT transfers."))
 
 def create_from_reference(
     reference_doctype: str,

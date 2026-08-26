@@ -19,7 +19,12 @@ class AccountStatement(Document):
 		currency: DF.Data | None
 		date: DF.Datetime | None
 		description: DF.SmallText | None
+		matched_document: DF.DynamicLink | None
+		matched_document_type: DF.Literal["Payment Entry", "Journal Entry", "Bank Transaction", "Bank Transfer"]
 		new_amount: DF.Currency
+		reconciled_by: DF.Link | None
+		reconciled_on: DF.Datetime | None
+		reconciliation_status: DF.Literal["Unmatched", "Matched", "Manually Matched"]
 		reference: DF.Data | None
 		serial: DF.Data | None
 		transaction_id: DF.Data | None

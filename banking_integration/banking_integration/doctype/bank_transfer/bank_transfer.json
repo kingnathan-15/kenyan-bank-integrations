@@ -6,8 +6,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "provider",
   "reference_section",
+  "bank",
   "reference_doctype",
   "reference_name",
   "source_section",
@@ -27,6 +27,7 @@
   "sender_mobile_number",
   "sender_email",
   "sender_address",
+  "bank_bic",
   "beneficiary_section",
   "beneficiary_name",
   "beneficiary_country",
@@ -36,12 +37,14 @@
   "beneficiary_document_number",
   "beneficiary_email",
   "beneficiary_address",
+  "destination_currency",
   "bank_code",
   "wallet_name",
   "tracking_section",
   "transaction_reference",
   "status",
   "bank_reference",
+  "payment_entry",
   "audit_section",
   "approved_by",
   "approved_on",
@@ -54,14 +57,6 @@
   "destination_balance_after"
  ],
  "fields": [
-  {
-   "fieldname": "provider",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Provider",
-   "options": "Banking Integration Provider",
-   "reqd": 1
-  },
   {
    "fieldname": "reference_section",
    "fieldtype": "Section Break",
@@ -253,8 +248,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Draft\nPending Approval\nApproved\nProcessing\nSuccessful\nFailed",
-   "read_only": 1
+   "options": "Draft\nPending Approval\nApproved\nProcessing\nSuccessful\nFailed"
   },
   {
    "description": "Reference returned by the banking provider",
@@ -324,11 +318,36 @@
    "fieldtype": "Currency",
    "label": "Destination Balance After",
    "read_only": 1
+  },
+  {
+   "fieldname": "bank",
+   "fieldtype": "Link",
+   "label": "Bank",
+   "options": "Bank",
+   "reqd": 1
+  },
+  {
+   "fieldname": "destination_currency",
+   "fieldtype": "Select",
+   "label": "Destination Currency",
+   "options": "KES\nUSD\nEUR\nGBP"
+  },
+  {
+   "depends_on": "eval:doc.transfer_type==\"SWIFT\";",
+   "fieldname": "bank_bic",
+   "fieldtype": "Data",
+   "label": "Swift Code"
+  },
+  {
+   "fieldname": "payment_entry",
+   "fieldtype": "Link",
+   "label": "Payment Entry",
+   "options": "Payment Entry"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-21 18:42:19.506202",
+ "modified": "2026-08-26 09:22:24.190831",
  "modified_by": "Administrator",
  "module": "Banking Integration",
  "name": "Bank Transfer",

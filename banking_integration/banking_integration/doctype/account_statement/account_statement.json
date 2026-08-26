@@ -18,39 +18,51 @@
   "running_balance_section",
   "new_amount",
   "currency",
-  "transaction_id"
+  "transaction_id",
+  "reconciliation_fields_section",
+  "reconciliation_status",
+  "matched_document_type",
+  "matched_document",
+  "reconciled_on",
+  "reconciled_by"
  ],
  "fields": [
   {
    "fieldname": "reference",
    "fieldtype": "Data",
    "label": "Reference",
+   "read_only": 1,
    "unique": 1
   },
   {
    "fieldname": "date",
    "fieldtype": "Datetime",
-   "label": "Date"
+   "label": "Date",
+   "read_only": 1
   },
   {
    "fieldname": "amount",
    "fieldtype": "Float",
-   "label": "Amount"
+   "label": "Amount",
+   "read_only": 1
   },
   {
    "fieldname": "serial",
    "fieldtype": "Data",
-   "label": "Serial"
+   "label": "Serial",
+   "read_only": 1
   },
   {
    "fieldname": "description",
    "fieldtype": "Small Text",
-   "label": "Description"
+   "label": "Description",
+   "read_only": 1
   },
   {
    "fieldname": "type",
    "fieldtype": "Data",
-   "label": "Type"
+   "label": "Type",
+   "read_only": 1
   },
   {
    "fieldname": "running_balance_section",
@@ -60,29 +72,68 @@
   {
    "fieldname": "new_amount",
    "fieldtype": "Currency",
-   "label": "New Amount"
+   "label": "New Amount",
+   "read_only": 1
   },
   {
    "fieldname": "currency",
    "fieldtype": "Data",
-   "label": "Currency"
+   "label": "Currency",
+   "read_only": 1
   },
   {
    "fieldname": "transaction_id",
    "fieldtype": "Data",
-   "label": "Transaction ID"
+   "label": "Transaction ID",
+   "read_only": 1
   },
   {
    "fieldname": "account",
    "fieldtype": "Link",
    "label": "Account",
-   "options": "Bank Account"
+   "options": "Bank Account",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reconciliation_fields_section",
+   "fieldtype": "Section Break",
+   "label": "Reconciliation Fields"
+  },
+  {
+   "default": "Unmatched",
+   "fieldname": "reconciliation_status",
+   "fieldtype": "Select",
+   "label": "Reconciliation Status",
+   "options": "Unmatched\nMatched\nManually Matched"
+  },
+  {
+   "fieldname": "matched_document_type",
+   "fieldtype": "Select",
+   "label": "Matched Document Type",
+   "options": "Payment Entry\nJournal Entry\nBank Transaction\nBank Transfer"
+  },
+  {
+   "fieldname": "matched_document",
+   "fieldtype": "Dynamic Link",
+   "label": "Matched Document",
+   "options": "matched_document_type"
+  },
+  {
+   "fieldname": "reconciled_on",
+   "fieldtype": "Datetime",
+   "label": "Reconciled On"
+  },
+  {
+   "fieldname": "reconciled_by",
+   "fieldtype": "Link",
+   "label": "Reconciled By",
+   "options": "User"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-29 17:36:44.551208",
+ "modified": "2026-08-24 02:00:41.153312",
  "modified_by": "Administrator",
  "module": "Banking Integration",
  "name": "Account Statement",

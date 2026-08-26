@@ -4,15 +4,47 @@
 import frappe
 import requests
 
+from frappe import _
+
 
 class StanbicClient:
     """
-    Client for Stanbic API.
+    Client for Stanbic Connect API.
 
     Uses the shared Bank Integration Credentials DocType.
+
+    Responsibilities:
+        - OAuth authentication
+        - Token caching
+        - Authenticated HTTP requests
+        - Exposing Stanbic API endpoints
     """
 
     AUTH_PATH = "/api/sandbox/auth/oauth2/token"
+
+    # ------------------------------------------------------------------
+    # PAYMENT ENDPOINTS
+    # ------------------------------------------------------------------
+
+    EFT_PATH = "/api/sandbox/eft-payments/"
+    MOBILE_PAYMENT_PATH = "/api/sandbox/mobile-payments/"
+    MPESA_CHECKOUT_PATH = "/api/sandbox/mpesa-checkout/"
+    PESALINK_PATH = "/api/sandbox/pesalink-payments/"
+    RTGS_PATH = "/api/sandbox/rtgs-payments/"
+    STANBIC_PAYMENT_PATH = "/api/sandbox/stanbic-payments/"
+
+    # ------------------------------------------------------------------
+    # ACCOUNT / INFORMATION ENDPOINTS
+    # ------------------------------------------------------------------
+
+    SORT_CODES_PATH = "/api/sandbox/fetch-sortcodes/"
+    STATEMENTS_PATH = "/api/sandbox/fetchStatements/"
+    TRANSACTIONS_PATH = "/api/sandbox/fetchTransactions/"
+    ZOHO_STATEMENTS_PATH = "/api/sandbox/statements/"
+
+    # ------------------------------------------------------------------
+    # INITIALIZATION
+    # ------------------------------------------------------------------
 
     def __init__(self, credentials):
         self.credentials = credentials
@@ -22,6 +54,7 @@ class StanbicClient:
                 credentials.sandbox_url
                 or "https://sandbox.connect.stanbicbank.co.ke"
             ).rstrip("/")
+
         else:
             self.base_url = (
                 credentials.production_url
@@ -33,22 +66,20 @@ class StanbicClient:
                 "Stanbic credentials: No API URL configured."
             )
 
-    # ------------------------------------------------------------------
+    # ==================================================================
     # AUTHENTICATION
-    # ------------------------------------------------------------------
+    # ==================================================================
 
     def get_access_token(self, force_refresh=False):
         """
         Return a valid Stanbic OAuth access token.
 
-        If the stored token is still valid, reuse it.
-        If it is expired or force_refresh=True, request a new
-        token from Stanbic and save it.
+        Reuses the stored token where possible and requests
+        a new token when expired or force_refresh=True.
         """
 
         now = frappe.utils.now_datetime()
 
-        # 1. Existing token is still valid
         if (
             not force_refresh
             and self.credentials.access_token
@@ -57,17 +88,26 @@ class StanbicClient:
         ):
             return self.credentials.access_token
 
-        # 2. Token doesn't exist or has expired.
-        #    Generate a new one from Stanbic.
-
         client_id = self.credentials.client_id
-        client_secret = self.credentials.get_password("client_secret")
+
+        client_secret = self.credentials.get_password(
+            "client_secret"
+        )
 
         if not client_id:
-            frappe.throw("Stanbic Client ID is missing.")
+            frappe.throw(
+                "Stanbic Client ID is missing."
+            )
 
         if not client_secret:
-            frappe.throw("Stanbic Client Secret is missing.")
+            frappe.throw(
+                "Stanbic Client Secret is missing."
+            )
+
+        token_url = (
+            f"{self.base_url}"
+            "/api/sandbox/auth/oauth2/token"
+        )
 
         payload = {
             "grant_type": "client_credentials",
@@ -76,30 +116,55 @@ class StanbicClient:
             "scope": "payments",
         }
 
-        response = requests.post(
-            f"{self.base_url}{self.AUTH_PATH}",
-            data=payload,
-            headers={
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json",
-            },
-            timeout=30,
-        )
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        }
+
+        try:
+            response = requests.post(
+                token_url,
+                data=payload,
+                headers=headers,
+                timeout=30,
+            )
+
+        except requests.exceptions.RequestException as e:
+            frappe.log_error(
+                title="Stanbic OAuth Request Error",
+                message=str(e),
+            )
+
+            frappe.throw(
+                f"Failed to connect to Stanbic: {str(e)}"
+            )
 
         if response.status_code != 200:
             frappe.log_error(
                 title="Stanbic OAuth Error",
                 message=(
+                    f"URL: {token_url}\n"
                     f"Status: {response.status_code}\n"
                     f"Response: {response.text}"
                 ),
             )
 
             frappe.throw(
-                f"Stanbic authentication failed: HTTP {response.status_code}"
+                _(
+                    "Stanbic authentication failed: "
+                    "HTTP {0}. Check Error Log for details."
+                ).format(
+                    response.status_code
+                )
             )
 
-        data = response.json()
+        try:
+            data = response.json()
+
+        except ValueError:
+            frappe.throw(
+                "Stanbic authentication returned invalid JSON."
+            )
 
         access_token = data.get("access_token")
 
@@ -109,17 +174,23 @@ class StanbicClient:
             )
 
         expires_in = int(
-            data.get("expires_in", 3600)
+            data.get(
+                "expires_in",
+                3600,
+            )
         )
 
-        # 3. Save the newly generated token
         self.credentials.access_token = access_token
 
-        # Refresh 60 seconds before actual expiry
-        self.credentials.token_expiry = frappe.utils.add_to_date(
-            now,
-            seconds=max(expires_in - 60, 60),
-            as_datetime=True,
+        self.credentials.token_expiry = (
+            frappe.utils.add_to_date(
+                now,
+                seconds=max(
+                    expires_in - 60,
+                    60,
+                ),
+                as_datetime=True,
+            )
         )
 
         self.credentials.save(
@@ -129,6 +200,10 @@ class StanbicClient:
         frappe.db.commit()
 
         return access_token
+    
+    # ==================================================================
+    # GENERIC REQUEST
+    # ==================================================================
 
     def request(
         self,
@@ -139,6 +214,14 @@ class StanbicClient:
     ):
         """
         Make an authenticated Stanbic API request.
+
+        Returns:
+
+        {
+            "status_code": 200,
+            "data": {...},
+            "success": True
+        }
         """
 
         token = self.get_access_token()
@@ -159,11 +242,15 @@ class StanbicClient:
             timeout=30,
         )
 
-        # Token may have expired server-side
+        # --------------------------------------------------------------
+        # Retry once if the token was rejected
+        # --------------------------------------------------------------
+
         if (
             response.status_code == 401
             and retry_on_401
         ):
+
             token = self.get_access_token(
                 force_refresh=True
             )
@@ -180,8 +267,13 @@ class StanbicClient:
                 timeout=30,
             )
 
+        # --------------------------------------------------------------
+        # Parse response
+        # --------------------------------------------------------------
+
         try:
             data = response.json()
+
         except ValueError:
             data = {
                 "raw_text": response.text
@@ -197,15 +289,132 @@ class StanbicClient:
             ),
         }
 
+    # ==================================================================
+    # BASIC HTTP METHODS
+    # ==================================================================
+
     def get(self, endpoint):
         return self.request(
             "GET",
             endpoint,
         )
 
-    def post(self, endpoint, payload):
+    def post(
+        self,
+        endpoint,
+        payload,
+    ):
         return self.request(
             "POST",
             endpoint,
             payload=payload,
+        )
+
+    # ==================================================================
+    # PAYMENTS
+    # ==================================================================
+
+    def eft_payment(self, payload):
+        """
+        Bank Transfer via EFT.
+        """
+
+        return self.post(
+            self.EFT_PATH,
+            payload,
+        )
+
+    def mobile_payment(self, payload):
+        """
+        Mobile Money B2C payment.
+        """
+
+        return self.post(
+            self.MOBILE_PAYMENT_PATH,
+            payload,
+        )
+
+    def mpesa_checkout(self, payload):
+        """
+        STK Push / M-PESA Checkout.
+        """
+
+        return self.post(
+            self.MPESA_CHECKOUT_PATH,
+            payload,
+        )
+
+    def pesalink_payment(self, payload):
+        """
+        Inter-bank transfer via Pesalink.
+        """
+
+        return self.post(
+            self.PESALINK_PATH,
+            payload,
+        )
+
+    def rtgs_payment(self, payload):
+        """
+        Inter-bank transfer via RTGS.
+        """
+
+        return self.post(
+            self.RTGS_PATH,
+            payload,
+        )
+
+    def stanbic_payment(self, payload):
+        """
+        Payment to another Stanbic account.
+        """
+
+        return self.post(
+            self.STANBIC_PAYMENT_PATH,
+            payload,
+        )
+
+    # ==================================================================
+    # ACCOUNT INFORMATION
+    # ==================================================================
+
+    def fetch_sort_codes(self, payload):
+        """
+        Fetch Stanbic / beneficiary bank sort codes.
+        """
+
+        return self.post(
+            self.SORT_CODES_PATH,
+            payload,
+        )
+
+    def fetch_statements(self, payload):
+        """
+        Fetch account transaction history.
+        """
+
+        return self.post(
+            self.STATEMENTS_PATH,
+            payload,
+        )
+
+    def fetch_transactions(self, payload):
+        """
+        Fetch account mini statement / last 20 transactions.
+        """
+
+        return self.post(
+            self.TRANSACTIONS_PATH,
+            payload,
+        )
+
+    def fetch_zoho_statements(self, payload):
+        """
+        Fetch transaction history through the ZohoBooks
+        statements endpoint.
+        """
+
+        return self.post(
+            self.ZOHO_STATEMENTS_PATH,
+            payload,
         )

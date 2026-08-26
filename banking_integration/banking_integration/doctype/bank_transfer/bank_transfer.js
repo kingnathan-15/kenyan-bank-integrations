@@ -1,8 +1,8 @@
 // Copyright (c) 2026, Nathan Wagacha and contributors
 // For license information, please see license.txt
 
-const TRANSFER_TYPES_BY_PROVIDER = {
-    "Jenga": [
+const TRANSFER_TYPES_BY_BANK = {
+    "Equity Bank Kenya": [
         "Internal Bank Transfer",
         "EFT",
         "RTGS",
@@ -11,17 +11,31 @@ const TRANSFER_TYPES_BY_PROVIDER = {
         "SWIFT",
         "Mobile Wallet",
     ],
-    "Stanbic": [
+
+    "Stanbic Bank Kenya": [
+        "EFT",
         "Pesalink Bank",
         "Pesalink Mobile",
         "RTGS",
         "Mobile Wallet",
         "B2C",
         "STK Push",
+        "Internal Bank Transfer",
+    ],
+
+    "KCB Bank Kenya": [
+        "EFT",
+        "RTGS",
+        "Pesalink Bank",
+        "Pesalink Mobile",
+        "Mobile Wallet",
+        "Internal Bank Transfer",
     ],
 };
 
+
 frappe.ui.form.on("Bank Transfer", {
+
     refresh(frm) {
         const is_new = frm.is_new();
 
@@ -43,30 +57,36 @@ frappe.ui.form.on("Bank Transfer", {
                 }
             );
         }
+
+        set_transfer_type_options(frm);
     },
 
-    provider(frm) {
-        const options =
-            TRANSFER_TYPES_BY_PROVIDER[frm.doc.provider] || [];
-
-        frm.set_df_property(
-            "transfer_type",
-            "options",
-            options.join("\n")
-        );
-
-        if (
-            !options.includes(
-                frm.doc.transfer_type
-            )
-        ) {
-            frm.set_value(
-                "transfer_type",
-                ""
-            );
-        }
+    bank(frm) {
+        set_transfer_type_options(frm);
     },
 });
+
+
+function set_transfer_type_options(frm) {
+    const options =
+        TRANSFER_TYPES_BY_BANK[frm.doc.bank] || [];
+
+    frm.set_df_property(
+        "transfer_type",
+        "options",
+        options.join("\n")
+    );
+
+    if (
+        frm.doc.transfer_type &&
+        !options.includes(frm.doc.transfer_type)
+    ) {
+        frm.set_value(
+            "transfer_type",
+            ""
+        );
+    }
+}
 
 
 function confirm_and_send_transfer(frm) {
