@@ -11,29 +11,20 @@ from banking_integration.services.statements import sync_stanbic_statement
 
 @frappe.whitelist(allow_guest=True)
 def ipn():
-
-
     try:
-        payload = frappe.request.get_json(
-            silent=True
-        )
+        payload = frappe.request.get_json(silent=True)
 
         if payload is None:
             payload = frappe.request.form.to_dict()
 
         if not payload:
             payload = {
-                "raw_body": frappe.request.get_data(
-                    as_text=True
-                )
+                "raw_body": frappe.request.get_data(as_text=True)
             }
 
         frappe.log_error(
             title="Stanbic IPN Received",
-            message=frappe.as_json(
-                payload,
-                indent=2,
-            ),
+            message=frappe.as_json(payload, indent=2),
         )
 
         return {
@@ -41,7 +32,6 @@ def ipn():
         }
 
     except Exception as e:
-
         frappe.log_error(
             title="Stanbic IPN Error",
             message=frappe.get_traceback(),
