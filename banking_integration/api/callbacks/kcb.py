@@ -65,13 +65,9 @@ def log_callback(callback_type, payload):
 
 
 def update_bank_transfer(payload):
-    """Update an existing Bank Transfer if found."""
+    """Update an existing Bank Transfer from a KCB FT callback."""
 
-    reference = (
-        payload.get("transactionReference")
-        or payload.get("retrievalRefNumber")
-        or payload.get("reference")
-    )
+    reference = payload.get("transactionReference")
 
     if not reference:
         return
@@ -86,18 +82,29 @@ def update_bank_transfer(payload):
 
     doc = frappe.get_doc("Bank Transfer", transfer)
 
-    if payload.get("status"):
-        doc.status = payload["status"]
+    transaction_status = payload.get("transactionStatus")
+    transaction_message = payload.get("transactionMessage")
 
-    if payload.get("statusDescription"):
-        doc.status_description = payload["statusDescription"]
+    if transaction_status == "SUCCESS":
+        doc.status = "Successful"
+
+    elif transaction_status == "FAILED":
+        doc.status = "Failed"
+
+    if hasattr(doc, "status_description"):
+        doc.status_description = transaction_message
+
+    if hasattr(doc, "bank_reference"):
+        doc.bank_reference = payload.get("ftReference")
 
     if hasattr(doc, "callback_payload"):
-        doc.callback_payload = json.dumps(payload, indent=2)
+        doc.callback_payload = json.dumps(
+            payload,
+            indent=2
+        )
 
     doc.save(ignore_permissions=True)
     frappe.db.commit()
-
 
 @frappe.whitelist(allow_guest=True)
 def funds_transfer_callback():
@@ -134,15 +141,12 @@ def ipn():
         payload = get_payload()
 
         log_callback("IPN", payload)
-
-        # Future processing goes here
-        # Example:
-        # if payload.get("event") == "ACCOUNT_CREDIT":
-        #     ...
+        update_bank_transfer(payload)
 
         return json_response({
-            "success": True,
-            "message": "IPN received"
+            "transactionID": payload.get("requestId"),
+            "statusCode": "0",
+            "statusMessage": "Notification received"
         })
 
     except Exception:
@@ -152,6 +156,7 @@ def ipn():
         )
 
         return json_response({
-            "success": False,
-            "message": "Internal server error"
+            "transactionID": "",
+            "statusCode": "1",
+            "statusMessage": "Internal server error"
         }, status=500)
