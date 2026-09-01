@@ -31,11 +31,7 @@ fixtures = [
     {
         "dt": "Custom Field",
         "filters": [
-            [
-                "dt",
-                "=",
-                "Bank Account",
-            ]
+            ["dt", "in", ["Payment Entry", "Bank Account"]]
         ],
     }
 ]

@@ -67,7 +67,6 @@ def authenticate_stanbic():
     }
 
 @frappe.whitelist()
-@frappe.whitelist()
 def bulk_reconcile_account_statements(bank=None):
     filters = {
         "reconciliation_status": ["!=", "Matched"]
