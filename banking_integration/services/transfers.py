@@ -55,6 +55,9 @@ def send_money(bank_transfer: str):
     "Equity Bank Kenya": _send_via_jenga,
     "Stanbic Bank Kenya": _send_via_stanbic,
     "KCB Bank Kenya": _send_via_kcb,
+    "Equity Bank": _send_via_jenga,
+    "Stanbic Bank": _send_via_stanbic,
+    "Kenya Commercial Bank": _send_via_kcb,
 }.get(doc.bank)
 
     if not dispatcher:
