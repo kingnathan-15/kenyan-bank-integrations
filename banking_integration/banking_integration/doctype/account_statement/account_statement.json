@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "field:reference",
+ "autoname": "hash",
  "creation": "2026-06-30 11:50:43.750542",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -31,8 +31,7 @@
    "fieldname": "reference",
    "fieldtype": "Data",
    "label": "Reference",
-   "read_only": 1,
-   "unique": 1
+   "read_only": 1
   },
   {
    "fieldname": "date",
@@ -133,11 +132,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-24 02:00:41.153312",
+ "modified": "2026-09-11 11:53:09.881123",
  "modified_by": "Administrator",
  "module": "Banking Integration",
  "name": "Account Statement",
- "naming_rule": "By fieldname",
+ "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [
   {

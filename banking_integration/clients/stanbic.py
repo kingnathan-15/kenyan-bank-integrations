@@ -13,8 +13,12 @@ class StanbicClient:
 
     Uses the shared Bank Integration Credentials DocType.
 
+    Authentication credentials are stored in the
+    Bank API Keys child table and are selected by
+    ERPNext Bank Account.
+
     Responsibilities:
-        - OAuth authentication
+        - Account-specific OAuth authentication
         - Token caching
         - Authenticated HTTP requests
         - Exposing Stanbic API endpoints
@@ -46,15 +50,16 @@ class StanbicClient:
     # INITIALIZATION
     # ------------------------------------------------------------------
 
-    def __init__(self, credentials):
+    def __init__(self, credentials, bank_account=None):
         self.credentials = credentials
+        self.bank_account = bank_account
+        self.api_credentials = self._get_api_credentials()
 
         if credentials.environment == "Sandbox":
             self.base_url = (
                 credentials.sandbox_url
                 or "https://sandbox.connect.stanbicbank.co.ke"
             ).rstrip("/")
-
         else:
             self.base_url = (
                 credentials.production_url
@@ -65,6 +70,63 @@ class StanbicClient:
             frappe.throw(
                 "Stanbic credentials: No API URL configured."
             )
+
+    # ==================================================================
+    # CREDENTIAL RESOLUTION
+    # ==================================================================
+
+    def _get_api_credentials(self):
+        """
+        Get Stanbic API credentials for the selected Bank Account.
+
+        Credentials are stored in the Bank API Keys child table:
+
+            Bank Integration Credentials
+                └── Bank API Keys
+                    ├── bank_account
+                    ├── client_key
+                    └── client_secret
+        """
+
+        if not self.bank_account:
+            frappe.throw(
+                _(
+                    "Stanbic Bank Account is required. "
+                    "Pass bank_account when creating StanbicClient."
+                )
+            )
+
+        for row in self.credentials.get("bank_keys") or []:
+
+            if row.bank_account == self.bank_account:
+                client_id = row.client_key
+                client_secret = row.get_password("client_secret")
+
+                if not client_id:
+                    frappe.throw(
+                        _(
+                            "Client Key is missing for Bank Account {0}."
+                        ).format(self.bank_account)
+                    )
+
+                if not client_secret:
+                    frappe.throw(
+                        _(
+                            "Client Secret is missing for Bank Account {0}."
+                        ).format(self.bank_account)
+                    )
+
+                return {
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "row": row,
+                }
+
+        frappe.throw(
+            _(
+                "No Stanbic API credentials found for Bank Account {0}."
+            ).format(self.bank_account)
+        )
 
     # ==================================================================
     # AUTHENTICATION
@@ -88,25 +150,12 @@ class StanbicClient:
         ):
             return self.credentials.access_token
 
-        client_id = self.credentials.client_id
-
-        client_secret = self.credentials.get_password(
-            "client_secret"
-        )
-
-        if not client_id:
-            frappe.throw(
-                "Stanbic Client ID is missing."
-            )
-
-        if not client_secret:
-            frappe.throw(
-                "Stanbic Client Secret is missing."
-            )
+        client_id = self.api_credentials["client_id"]
+        client_secret = self.api_credentials["client_secret"]
 
         token_url = (
             f"{self.base_url}"
-            "/api/sandbox/auth/oauth2/token"
+            f"{self.AUTH_PATH}"
         )
 
         payload = {
@@ -153,9 +202,7 @@ class StanbicClient:
                 _(
                     "Stanbic authentication failed: "
                     "HTTP {0}. Check Error Log for details."
-                ).format(
-                    response.status_code
-                )
+                ).format(response.status_code)
             )
 
         try:
@@ -180,27 +227,32 @@ class StanbicClient:
             )
         )
 
-        self.credentials.access_token = access_token
-
-        self.credentials.token_expiry = (
-            frappe.utils.add_to_date(
-                now,
-                seconds=max(
-                    expires_in - 60,
-                    60,
-                ),
-                as_datetime=True,
-            )
+        token_expiry = frappe.utils.add_to_date(
+            now,
+            seconds=max(
+                expires_in - 60,
+                60,
+            ),
+            as_datetime=True,
         )
 
-        self.credentials.save(
-            ignore_permissions=True
+        frappe.db.set_value(
+            "Bank Integration Credentials",
+            self.credentials.name,
+            {
+                "access_token": access_token,
+                "token_expiry": token_expiry,
+            },
+            update_modified=False,
         )
 
         frappe.db.commit()
 
+        self.credentials.access_token = access_token
+        self.credentials.token_expiry = token_expiry
+
         return access_token
-    
+
     # ==================================================================
     # GENERIC REQUEST
     # ==================================================================
@@ -234,23 +286,37 @@ class StanbicClient:
 
         url = f"{self.base_url}{endpoint}"
 
-        response = requests.request(
-            method,
-            url,
-            headers=headers,
-            json=payload,
-            timeout=30,
-        )
+        try:
+            response = requests.request(
+                method,
+                url,
+                headers=headers,
+                json=payload,
+                timeout=30,
+            )
+
+        except requests.exceptions.RequestException as e:
+            frappe.log_error(
+                title="Stanbic API Request Error",
+                message=(
+                    f"Method: {method}\n"
+                    f"URL: {url}\n"
+                    f"Error: {str(e)}"
+                ),
+            )
+
+            frappe.throw(
+                f"Failed to connect to Stanbic: {str(e)}"
+            )
 
         # --------------------------------------------------------------
-        # Retry once if the token was rejected
+        # Retry once if token was rejected
         # --------------------------------------------------------------
 
         if (
             response.status_code == 401
             and retry_on_401
         ):
-
             token = self.get_access_token(
                 force_refresh=True
             )
@@ -418,3 +484,4 @@ class StanbicClient:
             self.ZOHO_STATEMENTS_PATH,
             payload,
         )
+

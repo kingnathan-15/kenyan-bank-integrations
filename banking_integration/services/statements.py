@@ -1,3 +1,5 @@
+from urllib import response
+
 import frappe
 from frappe import _
 from frappe.utils import getdate
@@ -125,7 +127,6 @@ def sync_jenga_statement(bank_account, from_date, to_date):
         "failed": failed,
     }
 
-
 def sync_stanbic_statement(account, date_from, date_to):
     bank_account = frappe.get_doc("Bank Account", account)
 
@@ -137,71 +138,125 @@ def sync_stanbic_statement(account, date_from, date_to):
         )
 
     client = StanbicClient(
-        credentials=get_bank_account_credentials(bank_account)
+        credentials=get_bank_account_credentials(bank_account),
+        bank_account=bank_account.name
     )
 
     payload = {
-        "bookingDateGreaterThan": date_from,
-        "bookingDateLessThan": date_to,
-        "accountNumber": account_number,
+        "FromDate": date_from.replace("-", ""),
+        "ToDate": date_to.replace("-", ""),
     }
 
-    response = client.fetch_transactions(payload)
+    response = client.fetch_statements(payload)
 
-    if not response or not response.get("success"):
-        frappe.throw("Stanbic transaction request failed.")
+    data = response.get("data", {}) if response else {}
 
-    transactions = response.get("data", {}).get(
-        "transaction-items", []
+    response_code = data.get("ResponseCode")
+    response_message = (
+        data.get("ResponseMessage")
+        or data.get("message")
+        or ""
     )
 
-    created = skipped = 0
+    transactions = data.get("TransactionHistory", [])
+
+    # Stanbic returns these messages when there are no transactions
+    no_records = (
+        "No records were found that matched the selection criteria"
+        in response_message
+        or
+        "NO RECORDS RETURNED BY ROUTINE BASED SELECTION"
+        in response_message.upper()
+    )
+
+    if no_records:
+        return {
+            "status": "success",
+            "account": account_number,
+            "transactions": 0,
+            "created": 0,
+            "skipped": 0,
+            "message": "No transactions found for the selected period.",
+        }
+
+    # Any other non-success response is a real error
+    if not response or response_code != "00":
+        error = data.get("error", {}) if data else {}
+
+        frappe.throw(
+            error.get("detail")
+            or response_message
+            or "Stanbic statement request failed."
+        )
+
+    created = 0
+    skipped = 0
 
     for tx in transactions:
-        tx_id = tx.get("id") or tx.get("reference")
+        tx_id = tx.get("T24UniqRef")
 
-        if not tx_id or frappe.db.exists(
-            "Account Statement",
-            {"transaction_id": tx_id},
-        ):
+        if not tx_id:
             skipped += 1
             continue
 
-        amount_data = tx.get(
-            "transactionAmountCurrency", {}
-        )
-
-        amount = amount_data.get("amount")
+        amount = tx.get("TxnAmount")
 
         if amount is None:
             skipped += 1
             continue
 
-        indicator = tx.get("creditDebitIndicator")
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            skipped += 1
+            continue
+
+        transaction_date = tx.get("TransactionDate")
+
+        if not transaction_date:
+            skipped += 1
+            continue
+
+        description = (
+            tx.get("TxnDescr")
+            or tx.get("TransactionType")
+            or ""
+        )
+
+        existing = frappe.db.exists(
+            "Account Statement",
+            {
+                "account": bank_account.name,
+                "reference": tx_id,
+                "date": getdate(transaction_date),
+                "amount": abs(amount),
+                "description": description,
+            },
+        )
+
+        if existing:
+            skipped += 1
+            continue
 
         statement = frappe.new_doc("Account Statement")
 
         statement.update({
             "account": bank_account.name,
-            "reference": tx.get("reference") or tx_id,
-            "date": getdate(tx.get("bookingDate")),
-            "amount": abs(float(amount)),
+            "reference": tx_id,
+            "date": getdate(transaction_date),
+            "amount": abs(amount),
             "serial": tx_id,
-            "description": (
-                tx.get("description")
-                or tx.get("category")
-                or ""
-            ),
-            "type": (
-                "Credit"
-                if indicator == "CRDT"
-                else "Debit"
-                if indicator == "DBIT"
-                else None
-            ),
-            "currency": amount_data.get("currencyCode"),
-            "transaction_id": tx_id,
+            "description": description,
+            "type": "Credit" if amount > 0 else "Debit",
         })
+
+        if tx.get("RemainingBalance") is not None:
+            try:
+                statement.balance = float(
+                    tx.get("RemainingBalance")
+                )
+            except (TypeError, ValueError):
+                pass
 
         statement.insert(ignore_permissions=True)
         created += 1
@@ -214,6 +269,7 @@ def sync_stanbic_statement(account, date_from, date_to):
         "transactions": len(transactions),
         "created": created,
         "skipped": skipped,
+        "message": "Statement sync completed successfully.",
     }
 
 def _parse_datetime(value):

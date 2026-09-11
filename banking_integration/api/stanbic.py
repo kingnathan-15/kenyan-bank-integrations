@@ -24,24 +24,27 @@ def ipn():
 
         frappe.log_error(
             title="Stanbic IPN Received",
-            message=frappe.as_json(payload, indent=2),
+            message=frappe.as_json({
+                "method": frappe.request.method,
+                "content_type": frappe.request.content_type,
+                "payload": payload,
+            }, indent=2),
         )
 
         return {
             "status": "success"
         }
 
-    except Exception as e:
+    except Exception:
         frappe.log_error(
             title="Stanbic IPN Error",
             message=frappe.get_traceback(),
         )
 
         return {
-            "status": "error",
-            "message": str(e),
+            "status": "error"
         }
-
+    
 @frappe.whitelist(allow_guest=True)
 def fetch_statements(account, from_date, to_date):
     result = sync_stanbic_statement(
@@ -66,6 +69,12 @@ def authenticate_stanbic():
         "expires_at": credentials.token_expiry,
     }
 
+
+@frappe.whitelist()
+def reconcile_account_statement(statement):
+    return reconcile_statement(statement)
+
+
 @frappe.whitelist()
 def bulk_reconcile_account_statements(bank=None):
     filters = {
@@ -87,23 +96,34 @@ def bulk_reconcile_account_statements(bank=None):
         "errors": 0,
     }
 
+    # Resolve selected bank to actual ERPNext Bank name
+    if bank and bank != "All Banks":
+        bank_name = frappe.db.get_value(
+            "Bank",
+            {"name": ["like", f"%{bank}%"]},
+            "name",
+        )
+    else:
+        bank_name = None
+
     for statement in statements:
 
-        # Filter by bank unless "All Banks" was selected
-        if bank and bank != "All Banks":
-            bank_name = frappe.db.get_value(
+        if bank_name:
+            statement_bank = frappe.db.get_value(
                 "Bank Account",
                 statement.account,
                 "bank",
             )
 
-            if bank_name != bank:
+            if statement_bank != bank_name:
                 continue
 
         result["total"] += 1
 
         try:
-            outcome = reconcile_statement(statement.name)
+            outcome = reconcile_account_statement(
+                statement=statement.name
+            )
 
             status = outcome.get("status")
 
